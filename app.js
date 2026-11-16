@@ -285,9 +285,9 @@
     const seamText = [pl.N > 1 ? `横 ${pl.N - 1}か所（長さ ${fmt(pl.L)}mm）` : '', pl.M > 1 ? `長さ方向 ${pl.N * (pl.M - 1)}か所` : ''].filter(Boolean).join('、') || 'なし';
     box.innerHTML = `
       <p class="sum-main"><span class="sum-n">${pl.sheets}</span>枚に分けて印刷します</p>
+      <p class="sum-paper">プリンタに設定する用紙サイズ<b class="num">幅 ${fmt(pl.pageW)} mm × 長さ ${fmt(pl.PL)} mm</b><span>${pl.sheets > 1 ? 'どのページも同じ大きさです。' : ''}ドライバの「ユーザー定義の用紙サイズ」にこの数字を入れます。</span></p>
       <dl class="sum-grid">
         <div><dt>並べ方</dt><dd>${orientName[pl.orient]}</dd></div>
-        <div><dt>1枚の紙</dt><dd class="num">${fmt(pl.pageW)} × ${fmt(pl.PL)} mm${pl.M > 1 ? '（最長）' : ''}</dd></div>
         <div><dt>貼り合わせ</dt><dd>${seamText}</dd></div>
         <div><dt>ロール紙の使用量</dt><dd class="num">約 ${(pl.paper / 1000).toFixed(1)} m</dd></div>
       </dl>`;
@@ -328,7 +328,7 @@
       const res = await offerFile(name, bytes);
       if (res === 'declined') status('保存を取り消しました。');
       else if (res === 'busy') status('保存の確認がまだ開いています。閉じてからもう一度押してください。', 'warn');
-      else status(`「${name}」（${size}MB・${pl.sheets}ページ）を保存しました。Acrobat Reader で開き、倍率100%（実際のサイズ）で印刷してください。`, 'ok');
+      else status(`「${name}」（${size}MB・${pl.sheets}ページ）を保存しました。プリンタの用紙サイズを 幅${fmt(pl.pageW)}mm × 長さ${fmt(pl.PL)}mm にして、Acrobat Reader から倍率100%（実際のサイズ）で印刷してください。`, 'ok');
     } catch (e) {
       console.error(e);
       status('PDFを作れませんでした。原稿のファイルを確かめて、もう一度お試しください。', 'error');

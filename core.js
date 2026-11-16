@@ -83,23 +83,30 @@
       s.as = s.vs - s.startExt; s.ae = s.ve + s.endExt; s.c = s.ae - s.as;
       s.U0 = p.mSide + SZ + (P - s.c) / 2;           // 印刷できる範囲の中央に置く
     });
+    // 長さ方向の区切り：どのページも同じ長さになるように、区間ごとの絵の長さを決める
+    // （プリンタのドライバに登録する用紙サイズが1つで済む）
     const segs = [];
     for (let j = 0; j < M; j++) {
       const first = j === 0, last = j === M - 1;
       const startType = first ? 'edge' : p.nextOnTop ? 'cut' : 'glue';
       const endType = last ? 'edge' : p.nextOnTop ? 'glue' : 'cut';
-      const ts = (L * j) / M, te = last ? L : (L * (j + 1)) / M;
-      const ps = ts - extOf(startType), pe = te + extOf(endType);   // 印刷する範囲
       const head = first ? ZONE : 0, foot = last ? ZONE : 0;
-      segs.push({ j, first, last, startType, endType, ts, te, ps, pe,
-        vOff: p.mFeed + head - ps, PL: p.mFeed + head + (pe - ps) + foot + p.mFeed });
+      segs.push({ j, first, last, startType, endType, head, foot, over: head + foot + extOf(startType) + extOf(endType) });
     }
-    const PL = Math.max(...segs.map((s) => s.PL));
+    const X = (L + segs.reduce((a, s) => a + s.over, 0)) / M;     // 1ページのうち、上下の余白を除いた長さ
+    const PL = Math.ceil(X + 2 * p.mFeed - 1e-6);                  // ページの長さ（整数 mm に切り上げ。余りは紙の終わりの白い部分）
+    let tAcc = 0;
+    for (const sg of segs) {
+      sg.ts = tAcc; tAcc += X - sg.over; sg.te = sg.last ? L : tAcc;
+      sg.ps = sg.ts - extOf(sg.startType); sg.pe = sg.te + extOf(sg.endType);   // 印刷する範囲
+      sg.vOff = p.mFeed + sg.head - sg.ps;
+      sg.PL = PL;
+    }
     return {
       ...base, ok: true, N, M, SZ, nMin, sheets: N * M, countClamped: count > 0 && count < nMin,
       g, b: p.bleed, e, strips, segs, V0: segs[0].vOff, PL, pageW: p.rollW,
       seams: strips.slice(0, -1).map((s) => s.ve), tseams: segs.slice(0, -1).map((s) => s.te),
-      paper: N * segs.reduce((a, s) => a + s.PL, 0), tooLong: PL > PDF_MAX_MM, p,
+      paper: N * M * PL, tooLong: PL > PDF_MAX_MM, p,
     };
   }
 
