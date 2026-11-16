@@ -76,10 +76,16 @@
         const S2U = cols ? [1, 0, 0, 1, s.U0 - s.as, sg.vOff] : [-1, 0, 0, 1, s.U0 + s.ae, sg.vOff];
         const F2S = cols ? [1, 0, 0, 1, 0, 0] : [0, 1, 1, 0, 0, 0];
         ctx.save();                                          // 絵（この紙の受け持ち範囲）
-        ctx.beginPath(); ctx.rect(s.U0, sg.vOff + sg.ps, s.c, sg.pe - sg.ps); ctx.clip();
+        ctx.beginPath(); ctx.rect(s.clipU0, sg.vOff + sg.ps, s.clipW, sg.pe - sg.ps); ctx.clip();
         ctx.transform(...Core.mul(S2U, F2S));
         if (bmp) ctx.drawImage(bmp, 0, 0, p.W, p.H); else { ctx.fillStyle = '#c9d2cc'; ctx.fillRect(0, 0, p.W, p.H); }
         ctx.restore();
+        if (pl.lap && p.mSide > 0) {                         // 紙の端までのばした絵のうち、印刷できない余白は白く残る
+          for (const u of [0, pl.pageW - p.mSide]) {
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(u, 0, p.mSide, sg.PL);
+            ctx.fillStyle = 'rgba(120,130,125,0.22)'; ctx.fillRect(u, 0, p.mSide, sg.PL);
+          }
+        }
         ctx.save();                                          // ここから帯座標（a, t）
         ctx.transform(...S2U);
         const dash = (x1, y1, x2, y2) => {
@@ -88,16 +94,26 @@
         };
         const dot = (a, t) => { ctx.strokeStyle = '#1b2420'; ctx.lineWidth = px; ctx.beginPath(); ctx.arc(a, t, Math.max(5, 3 * px), 0, Math.PI * 2); ctx.stroke(); };
         ctx.fillStyle = 'rgba(255,255,255,0.55)';
-        for (const [type, sp, dir] of [[s.startType, s.vs, -1], [s.endType, s.ve, 1]]) {
-          if (type === 'glue') { const a1 = sp + dir * SAFE, a2 = sp + dir * pl.g; ctx.fillRect(Math.min(a1, a2), sg.ps, Math.abs(a2 - a1), sg.pe - sg.ps); }
+        for (const [type, sp, dir, guide] of [[s.startType, s.vs, -1, s.startGuide], [s.endType, s.ve, 1, s.endGuide]]) {
+          if (type === 'glue') {
+            const a1 = sp + dir * SAFE, a2 = sp + dir * pl.g;
+            ctx.fillStyle = 'rgba(255,255,255,0.55)';
+            ctx.fillRect(Math.min(a1, a2), sg.ps, Math.abs(a2 - a1), sg.pe - sg.ps);
+            if (guide) {                                     // となりの紙の端を合わせる線
+              const a = sp - dir * guide;
+              ctx.strokeStyle = cut; ctx.lineWidth = Math.max(0.35, 1.5 * px);
+              ctx.beginPath(); ctx.moveTo(a, tA); ctx.lineTo(a, tB); ctx.stroke();
+            }
+          }
           else if (type === 'cut') { const a = sp + dir * (pl.b + CUT_W / 2); dash(a, tA, a, tB); }
           if (type !== 'edge') { if (sg.first) dot(sp, -MARK_T); if (sg.last) dot(sp, pl.L + MARK_T); }
         }
         for (const [type, q, dir] of [[sg.startType, sg.ts, -1], [sg.endType, sg.te, 1]]) {
           if (type === 'edge') continue;
-          if (type === 'glue') { const t1 = q + dir * SAFE, t2 = q + dir * pl.g; ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(s.as, Math.min(t1, t2), s.c, Math.abs(t2 - t1)); }
-          else { const t = q + dir * (pl.b + CUT_W / 2); dash(s.as - pl.SZ, t, s.ae + pl.SZ, t); }
-          dot(s.as - 8, q); dot(s.ae + 8, q);
+          if (type === 'glue') { const t1 = q + dir * SAFE, t2 = q + dir * pl.g; ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(s.cs, Math.min(t1, t2), s.clipW, Math.abs(t2 - t1)); }
+          else { const t = q + dir * (pl.b + CUT_W / 2); dash(Math.min(s.cs, s.as - pl.SZ), t, Math.max(s.ce, s.ae + pl.SZ), t); }
+          if (s.startType !== 'lap') dot(s.as - 8, q);
+          if (s.endType !== 'lap') dot(s.ae + 8, q);
         }
         ctx.restore();
         ctx.strokeStyle = 'rgba(27,36,32,0.35)'; ctx.lineWidth = px;

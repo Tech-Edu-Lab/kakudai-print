@@ -17,6 +17,7 @@
   'use strict';
 
   const K = 72 / 25.4;      // mm → pt
+  const K_PT = K;
   const ZONE = 40;          // 絵の先端・後端に付ける案内帯（最後に切り落とす）
   const SIDE = 16;          // 長さ方向に分けるとき、紙の両脇に取る合わせマーク用の帯
   const MARK_T = 16;        // 合わせマークの中心：絵の端からの距離
@@ -40,7 +41,8 @@
   function planOne(p, orient, count) {
     const D = orient === 'cols' ? p.W : p.H;          // 横につなぐ方向の長さ
     const L = orient === 'cols' ? p.H : p.W;          // 紙の流れる方向の長さ
-    const g = p.glue, e = p.bleed + CUT_W, ext = g + e;
+    const lap = p.join !== 'cut';                      // 横の継ぎ目を切らずに重ねるか
+    const g = p.glue, e = p.bleed + CUT_W, ext = g + (lap ? 0 : e);
     const extOf = (type) => (type === 'glue' ? g : type === 'cut' ? e : 0);
     const cap = (p.maxLen > 0 ? p.maxLen : 5000) - 2 * p.mFeed;   // 1枚に印刷できる長さ
     const base = { orient, D, L, P: p.rollW - 2 * p.mSide };
@@ -65,10 +67,12 @@
     const N = Math.max(nMin, Math.floor(count || 0));
     if (N * M > 60) return { ...base, ok: false, reason: `${N * M}枚に分かれます。仕上がりサイズを確かめてください。` };
 
+    // 横の継ぎ目で上に重ねる側：'lap' = 切らずに紙の端をそのまま重ねる、'cut' = 点線で切ってから重ねる
+    const top = lap ? 'lap' : 'cut';
     const strips = [];
     for (let i = 0; i < N; i++) {
-      const startType = i === 0 ? 'edge' : p.nextOnTop ? 'cut' : 'glue';
-      const endType = i === N - 1 ? 'edge' : p.nextOnTop ? 'glue' : 'cut';
+      const startType = i === 0 ? 'edge' : p.nextOnTop ? top : 'glue';
+      const endType = i === N - 1 ? 'edge' : p.nextOnTop ? 'glue' : top;
       strips.push({ i, startType, endType, startExt: extOf(startType), endExt: extOf(endType) });
     }
     // 見える幅をそろえる。入らなければ「印刷する幅」をそろえる（必ず入る）。
@@ -82,6 +86,23 @@
       s.vs = acc; acc += v[k]; s.ve = k === N - 1 ? D : acc;
       s.as = s.vs - s.startExt; s.ae = s.ve + s.endExt; s.c = s.ae - s.as;
       s.U0 = p.mSide + SZ + (P - s.c) / 2;           // 印刷できる範囲の中央に置く
+      // 紙の両端の位置（帯座標）。rows は紙の上で a が逆向きになる
+      s.pa0 = orient === 'cols' ? s.as - s.U0 : s.ae + s.U0 - p.rollW;
+      s.pa1 = s.pa0 + p.rollW;
+      // 絵を描く範囲。切らずに重ねる側は、紙の端まで絵をのばす（印刷できない余白の分だけが白く残る）
+      s.cs = s.startType === 'lap' ? s.pa0 : s.as;
+      s.ce = s.endType === 'lap' ? s.pa1 : s.ae;
+      s.clipU0 = orient === 'cols' ? s.U0 + (s.cs - s.as) : s.U0 + (s.ae - s.ce);
+      s.clipW = s.ce - s.cs;
+    });
+    // 切らずに重ねるとき：下になる紙に「となりの紙の端を合わせる線」を引く位置（継ぎ目からの距離）
+    strips.forEach((s, k) => {
+      s.startLap = s.startType === 'lap' ? s.vs - s.pa0 : 0;
+      s.endLap = s.endType === 'lap' ? s.pa1 - s.ve : 0;
+    });
+    strips.forEach((s, k) => {
+      s.startGuide = s.startType === 'glue' && lap ? strips[k - 1].endLap : 0;
+      s.endGuide = s.endType === 'glue' && lap ? strips[k + 1].startLap : 0;
     });
     // 長さ方向の区切り：どのページも同じ長さになるように、区間ごとの絵の長さを決める
     // （プリンタのドライバに登録する用紙サイズが1つで済む）
@@ -104,7 +125,8 @@
     }
     return {
       ...base, ok: true, N, M, SZ, nMin, sheets: N * M, countClamped: count > 0 && count < nMin,
-      g, b: p.bleed, e, strips, segs, V0: segs[0].vOff, PL, pageW: p.rollW,
+      g, b: p.bleed, e, lap, strips, segs, V0: segs[0].vOff, PL, pageW: p.rollW,
+      needLen: Math.ceil(L + 2 * ZONE + 2 * p.mFeed),   // 長さ方向に分けないために必要な「1枚の最大の長さ」
       seams: strips.slice(0, -1).map((s) => s.ve), tseams: segs.slice(0, -1).map((s) => s.te),
       paper: N * M * PL, tooLong: PL > PDF_MAX_MM, p,
     };
@@ -145,6 +167,8 @@
     const { PDFDocument, StandardFonts, rgb, PDFName, pushGraphicsState, popGraphicsState,
       concatTransformationMatrix, rectangle, clip, endPath, drawObject } = PDFLib;
     const p = pl.p, N = pl.N, M = pl.M, L = pl.L, cols = pl.orient === 'cols';
+    // 5,080mm を超えるページは、PDF の拡張（UserUnit：1単位を何倍にするか）で表す
+    const uu = pl.PL > PDF_MAX_MM ? Math.ceil(pl.PL / PDF_MAX_MM) : 1, K = K_PT / uu;
     const INK = rgb(0.1, 0.1, 0.12), GRAY = rgb(0.5, 0.5, 0.52), WHITE = rgb(1, 1, 1), MAGENTA = rgb(0.89, 0, 0.5);
     const doc = await PDFDocument.create();
     doc.setTitle(`拡大プリント ${fmt(p.W)}×${fmt(p.H)}mm（${pl.sheets}枚）`);
@@ -165,6 +189,7 @@
 
     for (const s of pl.strips) for (const sg of pl.segs) {
       const page = doc.addPage([pl.pageW * K, sg.PL * K]);
+      if (uu > 1) page.node.set(PDFName.of('UserUnit'), PDFLib.PDFNumber.of(uu));
       const S2U = cols ? [1, 0, 0, 1, s.U0 - s.as, sg.vOff] : [-1, 0, 0, 1, s.U0 + s.ae, sg.vOff];
       const S2P = mul([K, 0, 0, -K, 0, K * sg.PL], S2U);
       const F2S = cols ? [1, 0, 0, 1, 0, 0] : [0, 1, 1, 0, 0, 0];
@@ -175,7 +200,7 @@
       // 1) 絵（この紙が受け持つ範囲だけを切り抜いて描く）
       const key = PDFName.of('KpSrc');
       page.node.setXObject(key, source.obj.ref);
-      const [x0, y0] = pt(s.as, sg.ps), [x1, y1] = pt(s.ae, sg.pe);
+      const [x0, y0] = pt(s.cs, sg.ps), [x1, y1] = pt(s.ce, sg.pe);
       page.pushOperators(
         pushGraphicsState(),
         rectangle(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0)), clip(), endPath(),
@@ -217,8 +242,8 @@
 
       // 2) 両脇（横の継ぎ目 / 外周）
       const sides = [
-        { type: s.startType, sp: s.vs, dir: -1, nb: s.i - 1, word: words[0] },
-        { type: s.endType, sp: s.ve, dir: 1, nb: s.i + 1, word: words[1] },
+        { type: s.startType, sp: s.vs, dir: -1, nb: s.i - 1, word: words[0], guide: s.startGuide },
+        { type: s.endType, sp: s.ve, dir: 1, nb: s.i + 1, word: words[1], guide: s.endGuide },
       ];
       const hintRows = [];
       if (sg.first) hintRows.push(-32.5);
@@ -237,8 +262,20 @@
             }
           }
           if (hintW) {
-            const lab = await getLabel({ kind: 'h', lines: [{ t: `のりしろ（${num(sd.nb)}を重ねる）`, s: 3.4, b: true }], maxW: hintW });
+            const lab = await getLabel({ kind: 'h', lines: [{ t: sd.guide ? `${num(sd.nb)}の紙の端を線に合わせる` : `のりしろ（${num(sd.nb)}を重ねる）`, s: 3.4, b: true }], maxW: hintW });
             for (const t of hintRows) put(lab, sd.sp + sd.dir * pl.g, t, -sd.dir);
+          }
+          if (sd.guide) {                               // 切らずに重ねる：となりの紙の端を合わせる線（重ねると隠れる）
+            const ag = sd.sp - sd.dir * (sd.guide - 0.6);
+            line(ag, tA, ag, tB, { w: 0.35, color: MAGENTA });
+            for (const t of [sg.first ? -MARK_T : null, sg.last ? L + MARK_T : null]) {
+              if (t !== null) line(sd.sp - sd.dir * (sd.guide + 15), t, sd.sp, t);
+            }
+          }
+        } else if (sd.type === 'lap') {
+          if (hintW) {
+            const lab = await getLabel({ kind: 'h', lines: [{ t: `切らずに${num(sd.nb)}の線へ重ねる`, s: 3.4, b: true, c: '#c8006e' }], maxW: hintW });
+            for (const t of hintRows) put(lab, sd.sp - sd.dir * 2, t, -sd.dir);
           }
         } else if (sd.type === 'cut') {
           const ac = sd.sp + sd.dir * (pl.b + CUT_W / 2);
@@ -267,7 +304,7 @@
         if (en.type === 'glue') {
           const t1 = en.q + en.dir * SAFE, t2 = en.q + en.dir * pl.g;
           if (pl.g - SAFE >= 3) {
-            box(s.as, s.ae, Math.min(t1, t2), Math.max(t1, t2), WHITE, 0.55);
+            box(s.cs, s.ce, Math.min(t1, t2), Math.max(t1, t2), WHITE, 0.55);
             const size = Math.min(5, pl.g - SAFE - 3);
             if (size >= 2.5) {
               const lab = await getLabel({ kind: 'h', maxW: Math.max(40, s.c - 30), lines: [{ t: `${name(s.i, sg.j)}　のりしろ（${name(s.i, en.nb)}を重ねる）　※となりの番号と貼る前に、先にここをつなぐ`, s: size, b: true }] });
@@ -276,19 +313,23 @@
           }
         } else {
           const tc = en.q + en.dir * (pl.b + CUT_W / 2);
-          line(s.as - pl.SZ, tc, s.ae + pl.SZ, tc, { w: CUT_W, color: MAGENTA, dash: [3, 2] });
+          line(Math.min(s.cs, s.as - pl.SZ), tc, Math.max(s.ce, s.ae + pl.SZ), tc, { w: CUT_W, color: MAGENTA, dash: [3, 2] });
         }
-        mark(s.as - 8, en.q, 5); mark(s.ae + 8, en.q, 5);
+        // 切らずに重ねる側は、あとで表に残るのでマークを置かない（紙の端をまっすぐそろえて合わせる）
+        if (s.startType !== 'lap') mark(s.as - 8, en.q, 5);
+        if (s.endType !== 'lap') mark(s.ae + 8, en.q, 5);
       }
 
       // 4) 仕上がり線（最後に外周を切るとき用）
-      if (sg.first) line(s.as, -0.6, s.ae, -0.6, { color: GRAY, dash: [2, 2] });
-      if (sg.last) line(s.as, L + 0.6, s.ae, L + 0.6, { color: GRAY, dash: [2, 2] });
+      if (sg.first) line(s.cs, -0.6, s.ce, -0.6, { color: GRAY, dash: [2, 2] });
+      if (sg.last) line(s.cs, L + 0.6, s.ce, L + 0.6, { color: GRAY, dash: [2, 2] });
 
       // 5) 中央の案内（番号・つなぎ方・サイズ）
       const mid = (s.vs + s.ve) / 2;
       const centerW = s.c - 2 * (hintW + 4) - 14;
       const sideText = (sd) => sd.type === 'cut' ? `${sd.word}側：点線で切り、${num(sd.nb)}ののりしろに重ねる`
+        : sd.type === 'lap' ? `${sd.word}側：切らずに、紙の端を${num(sd.nb)}の線に合わせて上に重ねる`
+        : sd.type === 'glue' && sd.guide ? `${sd.word}側：線に${num(sd.nb)}の紙の端を合わせて上に重ねる`
         : sd.type === 'glue' ? `${sd.word}側：のりしろ（${num(sd.nb)}を上に重ねる）` : '';
       const l2 = (M > 1 ? `先に ${num(s.i)}-1〜${num(s.i)}-${M} を長さの方向につなぐ　／　` : '') +
         (sides.map(sideText).filter(Boolean).join('　／　') || (M > 1 ? '横の貼り合わせはありません' : 'この1枚で完成します'));
