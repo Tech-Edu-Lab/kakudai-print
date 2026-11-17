@@ -1,4 +1,4 @@
-/* 拡大プリント labels: PDFに入れる日本語の案内文字を canvas で PNG にする
+/* かくピタくん labels: PDFに入れる日本語の案内文字を canvas で PNG にする
  * spec.kind === 'h' : 横書き（lines: [{t, s(mm), b(太字), c(色)}], maxW(mm) に収まるよう縮小）
  * spec.kind === 'v' : 縦書き（1文字ずつ縦に並べる。text, size(mm)）
  * 戻り値: { bytes: PNG(Uint8Array), w, h } … w, h は mm

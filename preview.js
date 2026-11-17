@@ -1,4 +1,4 @@
-/* 拡大プリント preview: 画面上のプレビュー（仕上がり／印刷される紙）を canvas に描く */
+/* かくピタくん preview: 画面上のプレビュー（仕上がり／印刷される紙）を canvas に描く */
 (function (root) {
   'use strict';
   const Core = root.KakudaiCore;

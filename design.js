@@ -1,4 +1,4 @@
-/* 拡大プリント design: デザイン（背景・文字・画像・四角）の描画と、1枚もののPDF化
+/* かくピタくん design: デザイン（背景・文字・画像・四角）の描画と、1枚もののPDF化
  * 位置 x, y は仕上がりの幅・高さに対する割合（要素の中心）。
  * 大きさは U = min(幅, 高さ) に対する割合（四角だけは w が幅、h が高さに対する割合）。
  * 文字の縁取りの太さ strokeW は文字の大きさに対する割合。サイズを変えても配置が崩れにくい。
@@ -105,7 +105,7 @@
     const { PDFDocument, pushGraphicsState, popGraphicsState, setLineJoin, LineJoinStyle } = PDFLib;
     await ensureFonts(d);
     const doc = await PDFDocument.create();
-    doc.setTitle(`拡大プリント デザイン ${Math.round(W)}×${Math.round(H)}mm`);
+    doc.setTitle(`かくピタくん デザイン ${Math.round(W)}×${Math.round(H)}mm`);
     const page = doc.addPage([W * K, H * K]);
     page.drawRectangle({ x: 0, y: 0, width: W * K, height: H * K, color: col(d.bg || '#ffffff') });
     const embedded = {};

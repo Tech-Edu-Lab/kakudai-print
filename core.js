@@ -1,4 +1,4 @@
-/* 拡大プリント core: 分割の計算と印刷用PDFの作成（ブラウザ / Node 共通）
+/* かくピタくん core: 分割の計算と印刷用PDFの作成（ブラウザ / Node 共通）
  *
  * 座標の約束（すべて mm）
  *   仕上がり座標 (X, Y): 原稿の左上が原点、X 右向き・Y 下向き。仕上がりサイズ W × H。
@@ -171,8 +171,8 @@
     const uu = pl.PL > PDF_MAX_MM ? Math.ceil(pl.PL / PDF_MAX_MM) : 1, K = K_PT / uu;
     const INK = rgb(0.1, 0.1, 0.12), GRAY = rgb(0.5, 0.5, 0.52), WHITE = rgb(1, 1, 1), MAGENTA = rgb(0.89, 0, 0.5);
     const doc = await PDFDocument.create();
-    doc.setTitle(`拡大プリント ${fmt(p.W)}×${fmt(p.H)}mm（${pl.sheets}枚）`);
-    doc.setCreator('拡大プリント（のりしろ分割印刷）');
+    doc.setTitle(`かくピタくん ${fmt(p.W)}×${fmt(p.H)}mm（${pl.sheets}枚）`);
+    doc.setCreator('かくピタくん（のりしろ分割印刷）');
     const font = await doc.embedFont(StandardFonts.HelveticaBold);
     const source = await embedSource(doc, src, p);
     const cache = new Map();
@@ -367,7 +367,7 @@
     const INK = rgb(0.1, 0.1, 0.12);
     const W = p.rollW, H = 300;
     const doc = await PDFDocument.create();
-    doc.setTitle(`拡大プリント テスト印刷（幅${fmt(W)}mm）`);
+    doc.setTitle(`かくピタくん テスト印刷（幅${fmt(W)}mm）`);
     const font = await doc.embedFont(StandardFonts.HelveticaBold);
     const page = doc.addPage([W * K, H * K]);
     const L = (u1, v1, u2, v2, w = 0.2) => page.drawLine({ start: { x: u1 * K, y: (H - v1) * K }, end: { x: u2 * K, y: (H - v2) * K }, thickness: w * K, color: INK });

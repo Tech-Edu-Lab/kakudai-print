@@ -1,4 +1,4 @@
-/* 拡大プリント app: 画面の操作、原稿の読み込み、PDFの作成と保存 */
+/* かくピタくん app: 画面の操作、原稿の読み込み、PDFの作成と保存 */
 (function () {
   'use strict';
   const Core = window.KakudaiCore, Labels = window.KakudaiLabels, Preview = window.KakudaiPreview;
@@ -324,7 +324,7 @@
     try {
       const src = design ? { kind: 'pdf', bytes: await Editor.toPdf(), pageIndex: 0 } : S.src;
       const bytes = await Core.buildPdf(pl, src, Labels.renderLabel);
-      const p = pl.p, name = `拡大プリント_${Math.round(p.W)}x${Math.round(p.H)}mm_${pl.sheets}枚.pdf`;
+      const p = pl.p, name = `かくピタくん_${Math.round(p.W)}x${Math.round(p.H)}mm_${pl.sheets}枚.pdf`;
       const size = (bytes.length / 1048576).toFixed(1);
       const res = await offerFile(name, bytes);
       if (res === 'declined') status('保存を取り消しました。');
@@ -344,7 +344,7 @@
     S.busy = true; $('designPdfBtn').disabled = true; status('');
     try {
       const bytes = await Editor.toPdf();
-      const name = `拡大プリント_仕上がり_${Math.round(W)}x${Math.round(H)}mm.pdf`;
+      const name = `かくピタくん_仕上がり_${Math.round(W)}x${Math.round(H)}mm.pdf`;
       const res = await offerFile(name, bytes);
       if (res === 'declined') status('保存を取り消しました。');
       else if (res !== 'busy') status(`「${name}」を保存しました。仕上がりの大きさ1枚のPDFです（印刷業者に頼むときや、縮小して確かめるときに使えます）。` +
@@ -359,7 +359,7 @@
     if (!(p.rollW > 50)) { status('ロール紙の幅を入力してください。', 'error'); return; }
     try {
       const bytes = await Core.buildTestPdf(p, Labels.renderLabel);
-      const name = `拡大プリント_テスト印刷_幅${Math.round(p.rollW)}mm.pdf`;
+      const name = `かくピタくん_テスト印刷_幅${Math.round(p.rollW)}mm.pdf`;
       const res = await offerFile(name, bytes);
       if (res !== 'declined' && res !== 'busy') status(`「${name}」を保存しました。倍率100%で印刷し、四辺の目盛りで余白を読んでください。`, 'ok');
     } catch (e) {

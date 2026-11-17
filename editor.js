@@ -1,4 +1,4 @@
-/* 拡大プリント editor: この画面で横断幕・ポスターを作る（文字・画像・四角を置いて動かす） */
+/* かくピタくん editor: この画面で横断幕・ポスターを作る（文字・画像・四角を置いて動かす） */
 (function (root) {
   'use strict';
   const Design = root.KakudaiDesign, Fonts = root.KakudaiFonts;
@@ -260,7 +260,7 @@
       E.design = t.make(); E.sel = null; $('bgColor').value = E.design.bg; changed();
     });
     $('saveDesign').addEventListener('click', async () => {
-      const res = await O.offerFile('拡大プリント_デザイン.json', JSON.stringify(serialize(true)), 'application/json');
+      const res = await O.offerFile('かくピタくん_デザイン.json', JSON.stringify(serialize(true)), 'application/json');
       if (res !== 'declined' && res !== 'busy') O.status('デザインを保存しました。「デザインを開く」で続きから編集できます。', 'ok');
     });
     $('openDesign').addEventListener('click', () => $('designFile').click());
@@ -269,7 +269,7 @@
       e.target.value = '';
       if (!f) return;
       try { checkpoint(); await restore(JSON.parse(await f.text())); changed(); O.status('デザインを開きました。', 'ok'); }
-      catch (err) { O.status('このファイルは開けませんでした。拡大プリントで保存したデザイン（.json）を選んでください。', 'error'); }
+      catch (err) { O.status('このファイルは開けませんでした。かくピタくんで保存したデザイン（.json）を選んでください。', 'error'); }
     });
     const st = $('stage');
     // 作業面・設定欄・道具の列・色パレット以外を押したら、選択を外して設定欄を閉じる
