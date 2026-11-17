@@ -18,6 +18,7 @@
 
   const K = 72 / 25.4;      // mm → pt
   const K_PT = K;
+  const TEST_LEN = 130;     // テスト印刷の紙の長さ
   const ZONE = 40;          // 絵の先端・後端に付ける案内帯（最後に切り落とす）
   const SIDE = 16;          // 長さ方向に分けるとき、紙の両脇に取る合わせマーク用の帯
   const MARK_T = 16;        // 合わせマークの中心：絵の端からの距離
@@ -365,7 +366,7 @@
   async function buildTestPdf(p, label) {
     const { PDFDocument, StandardFonts, rgb } = PDFLib;
     const INK = rgb(0.1, 0.1, 0.12);
-    const W = p.rollW, H = 300;
+    const W = p.rollW, H = TEST_LEN;            // 紙を節約するため、幅いっぱい × 長さ 130mm の帯にする
     const doc = await PDFDocument.create();
     doc.setTitle(`かくピタくん テスト印刷（幅${fmt(W)}mm）`);
     const font = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -376,40 +377,41 @@
       page.drawText(str, { x: u * K - w / 2, y: (H - v) * K - size * K * 0.36, size: size * K, font, color: INK });
     };
     const tick = (n) => (n % 10 === 0 ? 6 : n % 5 === 0 ? 4 : 2.5);
-    for (const v0 of [80, 225]) {               // 左右の端から 0〜30mm の目盛り
+    {                                           // 左右の端から 0〜30mm の目盛り
+      const v0 = 58;
       L(0, v0, 30, v0); L(W - 30, v0, W, v0);
       for (let n = 0; n <= 30; n++) {
         L(n, v0, n, v0 + tick(n)); L(W - n, v0, W - n, v0 + tick(n));
         if (n % 5 === 0 && n) { T(String(n), n, v0 + 9, 2.4); T(String(n), W - n, v0 + 9, 2.4); }
       }
     }
-    for (const u0 of [W * 0.3, W * 0.7]) {      // 上下の端から 0〜30mm の目盛り
+    for (const u0 of [40, W - 55]) {            // 紙の先端・後端から 0〜30mm の目盛り
       L(u0, 0, u0, 30); L(u0, H - 30, u0, H);
       for (let n = 0; n <= 30; n++) {
         L(u0, n, u0 + tick(n), n); L(u0, H - n, u0 + tick(n), H - n);
         if (n % 5 === 0 && n) { T(String(n), u0 + 10, n, 2.4); T(String(n), u0 + 10, H - n, 2.4); }
       }
     }
-    const cx = W / 2;                           // 100mm の正方形と長い線
-    L(cx - 50, 105, cx + 50, 105, 0.35); L(cx + 50, 105, cx + 50, 205, 0.35);
-    L(cx + 50, 205, cx - 50, 205, 0.35); L(cx - 50, 205, cx - 50, 105, 0.35);
-    T('100 mm', cx, 155, 4);
-    const bar = Math.min(500, Math.floor((W - 80) / 100) * 100);
+    const cx = W / 2;
+    const bar = Math.min(400, Math.floor((W - 180) / 100) * 100);   // 横（紙の幅の向き）の確認線
     if (bar >= 100) {
-      L(cx - bar / 2, 245, cx + bar / 2, 245, 0.35);
-      for (let k = 0; k <= bar / 100; k++) L(cx - bar / 2 + k * 100, 241, cx - bar / 2 + k * 100, 249, 0.35);
-      T(`${bar} mm`, cx, 254, 3.2);
+      L(cx - bar / 2, 95, cx + bar / 2, 95, 0.35);
+      for (let k = 0; k <= bar / 100; k++) L(cx - bar / 2 + k * 100, 91, cx - bar / 2 + k * 100, 99, 0.35);
+      T(`${bar} mm`, cx, 104, 3.2);
     }
-    const lab = await label({ kind: 'h', maxW: Math.min(W - 90, 420), lines: [
+    const ux = W - 75;                          // 縦（紙が流れる向き）の 100mm の確認線
+    L(ux, 15, ux, 115, 0.35); L(ux - 4, 15, ux + 4, 15, 0.35); L(ux - 4, 115, ux + 4, 115, 0.35);
+    T('100 mm', ux - 12, 65, 3.2);
+    const lab = await label({ kind: 'h', maxW: Math.min(W - 200, 380), lines: [
       { t: 'テスト印刷（倍率100%・実際のサイズで印刷してください）', s: 4.6, b: true },
-      { t: '① 正方形が 100mm、長い線が目盛りどおりの長さか、定規で測ります。', s: 3.4 },
+      { t: '① 横の長い線と、右にある縦の 100mm の線を定規で測り、目盛りどおりの長さか確かめます。', s: 3.4 },
       { t: '② 四辺の目盛りが「何mmから」印刷されているかを読みます。その数字が「印刷できない余白」です。', s: 3.4 },
-      { t: `※ ロール紙の幅が ${fmt(W)}mm のときに正しく測れます。`, s: 3 },
+      { t: `※ ロール紙の幅が ${fmt(W)}mm のときに正しく測れます。用紙サイズは 幅${fmt(W)} × 長さ${H}mm。`, s: 3 },
     ] });
     const img = await doc.embedPng(lab.bytes);
-    page.drawImage(img, { x: (cx - lab.w / 2) * K, y: (H - 52 - lab.h / 2) * K, width: lab.w * K, height: lab.h * K });
+    page.drawImage(img, { x: (cx - lab.w / 2) * K, y: (H - 42 - lab.h / 2) * K, width: lab.w * K, height: lab.h * K });
     return doc.save();
   }
 
-  return { plan, planOne, buildPdf, buildTestPdf, mul, ap, num, fmt, consts: { K, ZONE, SIDE, MARK_T, MARK_R, SAFE, CUT_W, PDF_MAX_MM } };
+  return { plan, planOne, buildPdf, buildTestPdf, mul, ap, num, fmt, consts: { K, TEST_LEN, ZONE, SIDE, MARK_T, MARK_R, SAFE, CUT_W, PDF_MAX_MM } };
 });

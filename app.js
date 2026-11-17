@@ -385,7 +385,7 @@
       const bytes = await Core.buildTestPdf(p, Labels.renderLabel);
       const name = `かくピタくん_テスト印刷_幅${Math.round(p.rollW)}mm.pdf`;
       const res = await offerFile(name, bytes);
-      if (res !== 'declined' && res !== 'busy') status(`「${name}」を保存しました。倍率100%で印刷し、四辺の目盛りで余白を読んでください。`, 'ok');
+      if (res !== 'declined' && res !== 'busy') status(`「${name}」を保存しました。プリンタの用紙サイズを 幅${fmt(p.rollW)}mm × 長さ${Core.consts.TEST_LEN}mm にして倍率100%で印刷し、四辺の目盛りで余白を読んでください。`, 'ok');
     } catch (e) {
       console.error(e);
       status('テスト印刷用のPDFを作れませんでした。', 'error');
