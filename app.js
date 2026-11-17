@@ -5,7 +5,7 @@
   const $ = (id) => document.getElementById(id);
   const fmt = Core.fmt;
   const K = Core.consts.K;
-  const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+  const PDFJS = 'vendor/';                       // pdf.js（PDF原稿のプレビュー用）も同梱のものを使う
   const STORE = 'kakudai-print:v1';
   const Editor = window.KakudaiEditor;
   const MODE = 'kakudai-print:mode';
