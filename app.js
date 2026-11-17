@@ -37,20 +37,20 @@
   function rollWidth() { return $('rollSel').value === 'custom' ? num('rollW') : parseFloat($('rollSel').value); }
   function params() {
     return { W: num('W'), H: num('H'), rollW: rollWidth(), mSide: num('mSide'), mFeed: num('mFeed'),
-      glue: num('glue'), bleed: 3, nextOnTop: $('order').value === 'next', maxLen: num('maxLen'), join: $('join').value };
+      glue: num('glue'), bleed: 3, nextOnTop: $('order').value === 'next', maxLen: num('maxLen'), join: $('join').value, guide: $('guide').value !== 'off' };
   }
   function orientChoice() { return document.querySelector('input[name="orient"]:checked').value; }
   function saveSettings() {
     try {
       localStorage.setItem(STORE, JSON.stringify({ rollSel: $('rollSel').value, rollW: $('rollW').value, mSide: $('mSide').value,
-        mFeed: $('mFeed').value, glue: $('glue').value, order: $('order').value, maxLen: $('maxLen').value, join: $('join').value }));
+        mFeed: $('mFeed').value, glue: $('glue').value, order: $('order').value, maxLen: $('maxLen').value, join: $('join').value, guide: $('guide').value }));
     } catch (e) { /* 保存できない環境でも動く */ }
   }
   function loadSettings() {
     try {
       const v = JSON.parse(localStorage.getItem(STORE) || 'null');
       if (!v) return;
-      for (const k of ['rollSel', 'rollW', 'mSide', 'mFeed', 'glue', 'order', 'maxLen', 'join']) if (v[k] != null && $(k)) $(k).value = v[k];
+      for (const k of ['rollSel', 'rollW', 'mSide', 'mFeed', 'glue', 'order', 'maxLen', 'join', 'guide']) if (v[k] != null && $(k)) $(k).value = v[k];
     } catch (e) { /* 既定値のまま */ }
   }
 
@@ -321,6 +321,7 @@
     } else if (!S.src) warns.push(['info', '原稿を選ぶと、印刷用のPDFを作れます。']);
     if (pl.tooLong) warns.push(['warn', `1枚の長さが ${fmt(pl.PL)}mm で、PDFの標準の上限（5,080mm）を超えるため、PDFの拡張機能で長いページを作ります。Acrobat Reader で開いて印刷してください（ブラウザ内蔵の表示では、大きさが正しく出ないことがあります）。うまく印刷できないときは「1枚の最大の長さ」を 5,000mm 以下にすると、長さの方向にも分けます。`]);
     if (pl.M > 1) warns.push(['warn', `「1枚の最大の長さ」が ${fmt(p.maxLen)}mm のため、長さの方向にも ${pl.M} つに分けています（紙の番号は ①-1、①-2 …）。この値を ${fmt(pl.needLen)}mm 以上にすると、長さの方向には分けず ${pl.N} 枚になります。分けたままのときは、先に同じ番号どうしを長さの方向につないでから、となりの番号と貼り合わせてください。`]);
+    if (!pl.Z && pl.sheets > 1) warns.push(['info', '案内の帯を印刷しないので、◎の合わせマークと紙の説明は入りません。紙の番号は「のりしろ」の中に入ります（最後の番号の紙には入りません。PDFのページ順が番号順です）。長さの向きは、紙の両端をそろえて合わせてください。']);
     if (pl.lap && pl.N > 1 && p.mSide > 0) warns.push(['info', `切らずに重ねるので、継ぎ目に余白の幅（約${fmt(p.mSide)}mm）の白いすじが出ます。白地なら目立ちません。色地で気になるときは、つなぎ方を「点線で切って重ねる」にしてください。`]);
     if (pl.countClamped) warns.push(['warn', `紙の幅に入らないため、${pl.nMin}枚より少なくはできません。`]);
     if (pl.N === 2 && pl.D <= pl.P + 60 && pl.D > pl.P) {
@@ -415,7 +416,7 @@
     $('edToggle').addEventListener('click', () => setCollapsed(!$('editor').classList.contains('is-collapsed')));
     $('lock').addEventListener('change', () => { if ($('lock').checked && S.src) $('H').value = Math.round(num('W') / S.src.aspect); update(); });
     $('rollSel').addEventListener('change', () => { $('rollCustom').hidden = $('rollSel').value !== 'custom'; update(); });
-    for (const id of ['rollW', 'mSide', 'mFeed', 'glue', 'count', 'order', 'maxLen', 'join']) $(id).addEventListener('input', update);
+    for (const id of ['rollW', 'mSide', 'mFeed', 'glue', 'count', 'order', 'maxLen', 'join', 'guide']) $(id).addEventListener('input', update);
     document.querySelectorAll('input[name="orient"]').forEach((r) => r.addEventListener('change', update));
     $('makeBtn').addEventListener('click', makePdf);
     $('testBtn').addEventListener('click', makeTestPdf);

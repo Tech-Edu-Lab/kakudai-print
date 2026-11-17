@@ -42,6 +42,7 @@
   function planOne(p, orient, count) {
     const D = orient === 'cols' ? p.W : p.H;          // 横につなぐ方向の長さ
     const L = orient === 'cols' ? p.H : p.W;          // 紙の流れる方向の長さ
+    const Z = p.guide === false ? 0 : ZONE;            // 案内の帯（印刷しない設定なら 0）
     const lap = p.join !== 'cut';                      // 横の継ぎ目を切らずに重ねるか
     const g = p.glue, e = p.bleed + CUT_W, ext = g + (lap ? 0 : e);
     const extOf = (type) => (type === 'glue' ? g : type === 'cut' ? e : 0);
@@ -51,8 +52,8 @@
 
     // 長さ方向：1枚に収まらなければ区間に分ける
     let M = 1;
-    if (L + 2 * ZONE > cap) {
-      const per = cap - ZONE - Math.max(g, e);
+    if (L + 2 * Z > cap) {
+      const per = cap - Z - Math.max(g, e);
       if (per < 100) return { ...base, ok: false, reason: '「1枚の最大の長さ」が短すぎます。' };
       M = Math.max(2, Math.ceil(L / per - 1e-9));
     }
@@ -112,7 +113,7 @@
       const first = j === 0, last = j === M - 1;
       const startType = first ? 'edge' : p.nextOnTop ? 'cut' : 'glue';
       const endType = last ? 'edge' : p.nextOnTop ? 'glue' : 'cut';
-      const head = first ? ZONE : 0, foot = last ? ZONE : 0;
+      const head = first ? Z : 0, foot = last ? Z : 0;
       segs.push({ j, first, last, startType, endType, head, foot, over: head + foot + extOf(startType) + extOf(endType) });
     }
     const X = (L + segs.reduce((a, s) => a + s.over, 0)) / M;     // 1ページのうち、上下の余白を除いた長さ
@@ -126,8 +127,8 @@
     }
     return {
       ...base, ok: true, N, M, SZ, nMin, sheets: N * M, countClamped: count > 0 && count < nMin,
-      g, b: p.bleed, e, lap, strips, segs, V0: segs[0].vOff, PL, pageW: p.rollW,
-      needLen: Math.ceil(L + 2 * ZONE + 2 * p.mFeed),   // 長さ方向に分けないために必要な「1枚の最大の長さ」
+      g, b: p.bleed, e, lap, Z, strips, segs, V0: segs[0].vOff, PL, pageW: p.rollW,
+      needLen: Math.ceil(L + 2 * Z + 2 * p.mFeed),   // 長さ方向に分けないために必要な「1枚の最大の長さ」
       seams: strips.slice(0, -1).map((s) => s.ve), tseams: segs.slice(0, -1).map((s) => s.te),
       paper: N * M * PL, tooLong: PL > PDF_MAX_MM, p,
     };
@@ -196,7 +197,8 @@
       const F2S = cols ? [1, 0, 0, 1, 0, 0] : [0, 1, 1, 0, 0, 0];
       const pt = (a, t) => ap(S2P, a, t);
       const pdirX = cols ? 1 : -1;  // +a 方向が用紙の右(+1)か左(-1)か
-      const tA = sg.first ? -ZONE + 3 : sg.ps, tB = sg.last ? L + ZONE - 3 : sg.pe;   // この紙に入る t の範囲
+      const Z = pl.Z, zf = sg.first && Z > 0, zl = sg.last && Z > 0;          // 案内の帯があるか
+      const tA = sg.first ? (Z ? -Z + 3 : 0) : sg.ps, tB = sg.last ? (Z ? L + Z - 3 : L) : sg.pe;   // この紙に入る t の範囲
 
       // 1) 絵（この紙が受け持つ範囲だけを切り抜いて描く）
       const key = PDFName.of('KpSrc');
@@ -247,8 +249,8 @@
         { type: s.endType, sp: s.ve, dir: 1, nb: s.i + 1, word: words[1], guide: s.endGuide },
       ];
       const hintRows = [];
-      if (sg.first) hintRows.push(-32.5);
-      if (sg.last) hintRows.push(L + 32.5);
+      if (zf) hintRows.push(-32.5);
+      if (zl) hintRows.push(L + 32.5);
       const hintW = s.c >= 160 ? 44 : 0;
       for (const sd of sides) {
         if (sd.type === 'glue') {
@@ -257,7 +259,7 @@
             box(Math.min(a1, a2), Math.max(a1, a2), sg.ps, sg.pe, WHITE, 0.55);
             const size = Math.min(7, pl.g - SAFE - 2.5), len = sg.te - sg.ts;
             if (size >= 3 && len >= 120) {
-              const lab = await getLabel({ kind: 'v', text: `のりしろ　${num(sd.nb)}を重ねる`, size });
+              const lab = await getLabel({ kind: 'v', text: Z ? `のりしろ　${num(sd.nb)}を重ねる` : `${num(s.i)}の紙　のりしろ　${num(sd.nb)}を重ねる`, size });
               const n = Math.max(1, Math.floor(len / 450));
               for (let k = 0; k < n; k++) put(lab, sd.sp + sd.dir * (SAFE + pl.g) / 2, sg.ts + (len * (k + 0.5)) / n);
             }
@@ -269,7 +271,7 @@
           if (sd.guide) {                               // 切らずに重ねる：となりの紙の端を合わせる線（重ねると隠れる）
             const ag = sd.sp - sd.dir * (sd.guide - 0.6);
             line(ag, tA, ag, tB, { w: 0.35, color: MAGENTA });
-            for (const t of [sg.first ? -MARK_T : null, sg.last ? L + MARK_T : null]) {
+            for (const t of [zf ? -MARK_T : null, zl ? L + MARK_T : null]) {
               if (t !== null) line(sd.sp - sd.dir * (sd.guide + 15), t, sd.sp, t);
             }
           }
@@ -286,12 +288,12 @@
             for (const t of hintRows) put(lab, sd.sp + sd.dir * (pl.b - 1), t, -sd.dir);
           }
         } else {
-          if (sg.first) line(sd.sp, -12, sd.sp, -3, { color: GRAY });
-          if (sg.last) line(sd.sp, L + 3, sd.sp, L + 12, { color: GRAY });
+          if (zf) line(sd.sp, -12, sd.sp, -3, { color: GRAY });
+          if (zl) line(sd.sp, L + 3, sd.sp, L + 12, { color: GRAY });
         }
         if (sd.type !== 'edge') {
-          if (sg.first) mark(sd.sp, -MARK_T);
-          if (sg.last) mark(sd.sp, L + MARK_T);
+          if (zf) mark(sd.sp, -MARK_T);
+          if (zl) mark(sd.sp, L + MARK_T);
         }
       }
 
@@ -322,8 +324,8 @@
       }
 
       // 4) 仕上がり線（最後に外周を切るとき用）
-      if (sg.first) line(s.cs, -0.6, s.ce, -0.6, { color: GRAY, dash: [2, 2] });
-      if (sg.last) line(s.cs, L + 0.6, s.ce, L + 0.6, { color: GRAY, dash: [2, 2] });
+      if (zf) line(s.cs, -0.6, s.ce, -0.6, { color: GRAY, dash: [2, 2] });
+      if (zl) line(s.cs, L + 0.6, s.ce, L + 0.6, { color: GRAY, dash: [2, 2] });
 
       // 5) 中央の案内（番号・つなぎ方・サイズ）
       const mid = (s.vs + s.ve) / 2;
@@ -338,8 +340,8 @@
         (cols ? '' : '　※紙の右側が仕上がりの「上」');
       const l1 = `全${pl.sheets}枚のうち ${name(s.i, sg.j)}`;
       const rows = [];
-      if (sg.first) rows.push([-32.5, [{ t: l1, s: 4.2, b: true }, { t: l2, s: 3.3 }, { t: l3, s: 2.7 }]]);
-      if (sg.last) rows.push([L + 32.5, [{ t: `${l1}（紙の終わり）`, s: 3.6, b: true }, { t: l3, s: 2.7 }]]);
+      if (zf) rows.push([-32.5, [{ t: l1, s: 4.2, b: true }, { t: l2, s: 3.3 }, { t: l3, s: 2.7 }]]);
+      if (zl) rows.push([L + 32.5, [{ t: `${l1}（紙の終わり）`, s: 3.6, b: true }, { t: l3, s: 2.7 }]]);
       for (const [row, lines] of rows) {
         if (centerW < 60) break;
         const lab = await getLabel({ kind: 'h', maxW: centerW, lines });
@@ -350,7 +352,7 @@
       }
 
       // 6) 100mm の確認線
-      if (sg.first && s.ve - s.vs >= 150) {
+      if (zf && s.ve - s.vs >= 150) {
         const t = -14;
         line(mid - 50, t, mid + 50, t, { w: 0.35 });
         line(mid - 50, t - 2.5, mid - 50, t + 2.5, { w: 0.35 }); line(mid + 50, t - 2.5, mid + 50, t + 2.5, { w: 0.35 });

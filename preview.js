@@ -65,7 +65,7 @@
       pl.strips.forEach((s, i) => {
         const ox = lay ? pad + off : pad + i * (pw + gap), oy = lay ? pad + i * (pw + gap) : pad + off;
         const toScreen = lay ? (u, v) => [ox + v * k, oy + (pl.pageW - u) * k] : (u, v) => [ox + u * k, oy + v * k];
-        const tA = sg.first ? -ZONE + 3 : sg.ps, tB = sg.last ? pl.L + ZONE - 3 : sg.pe, px = 1 / k;
+        const Z = pl.Z, tA = sg.first ? (Z ? -Z + 3 : 0) : sg.ps, tB = sg.last ? (Z ? pl.L + Z - 3 : pl.L) : sg.pe, px = 1 / k;
         ctx.save();
         if (lay) { ctx.translate(ox, oy + pw); ctx.rotate(-Math.PI / 2); } else ctx.translate(ox, oy);
         ctx.scale(k, k);                                     // ここから用紙座標（mm）
@@ -106,7 +106,7 @@
             }
           }
           else if (type === 'cut') { const a = sp + dir * (pl.b + CUT_W / 2); dash(a, tA, a, tB); }
-          if (type !== 'edge') { if (sg.first) dot(sp, -MARK_T); if (sg.last) dot(sp, pl.L + MARK_T); }
+          if (type !== 'edge') { if (sg.first && Z) dot(sp, -MARK_T); if (sg.last && Z) dot(sp, pl.L + MARK_T); }
         }
         for (const [type, q, dir] of [[sg.startType, sg.ts, -1], [sg.endType, sg.te, 1]]) {
           if (type === 'edge') continue;

@@ -323,6 +323,12 @@ textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; 
             <option value="cut">点線で切って重ねる（白いすじが出ない）</option>
           </select>
         </label>
+        <label class="field"><span>紙の両端の案内の帯（番号・合わせマーク）</span>
+          <select id="guide">
+            <option value="on" selected>印刷する（最後に両端を切り落とす）</option>
+            <option value="off">印刷しない（両端を切らずに仕上げる）</option>
+          </select>
+        </label>
         <label class="field"><span>のりしろの幅</span><span class="unit"><input type="number" id="glue" min="12" max="80" step="1" value="20"></span></label>
         <div class="field"><span>紙の並べ方</span>
           <div class="radios">
@@ -371,7 +377,7 @@ textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; 
         <li><b>番号順に並べる</b>　印刷した紙には大きく番号（①、②…）が入っています。床や机に、仕上がりの形になるよう番号順に並べます。</li>
         <li><b>貼る順番を守って重ねる</b>　<span id="orderText">①を置き、その上に②を重ね、さらに②の上に③を重ねる…と、番号の順に「あとの番号を上」に重ねます。</span></li>
         <li><b>線に合わせて貼る</b>　紙は切りません。下になる紙の「のりしろ」（絵が淡くなった帯）にマゼンタの細い線があります。上に重ねる紙のまっすぐな端を、その線がちょうど隠れる位置に置き、紙の両端の ◎ の横線がつながるように長さの向きをそろえて、のりや両面テープで貼ります。</li>
-        <li><b>仕上げる</b>　全部つないだら、上下の案内の部分を灰色の点線（仕上がり線）で切り落とします（白い余白のままでよければ、切らなくてもかまいません）。</li>
+        <li><b>仕上げる</b>　全部つないだら、紙の両端の案内の帯を灰色の点線（仕上がり線）で切り落とします。「案内の帯を印刷しない」設定なら、この作業はありません。</li>
       </ol>
       <svg class="diagram" viewBox="0 0 300 250" role="img" aria-label="①を下に置き、②の端を①ののりしろの線に合わせて上に重ねる図">
         <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker></defs>
