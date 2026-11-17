@@ -277,11 +277,35 @@
     status('');
     update();
   }
+  /** 今の設定での「貼る順番」の説明（手順欄に出す） */
+  function orderText(pl) {
+    const c = Core.num, N = pl.N, M = pl.M, next = pl.p.nextOnTop;
+    const dir = pl.orient === 'cols' ? ['左', '右'] : ['上', '下'];
+    const seq = (n, f) => Array.from({ length: n }, (_, i) => f(i));
+    const chain = (names) => {
+      const order = next ? names : names.slice().reverse();
+      const step = (i) => (i === 0 ? `<b>${order[0]}</b>を置き` : `<b>${order[i]}</b>を${order[i - 1]}の上に重ね`);
+      if (order.length <= 4) return order.map((_, i) => step(i)).join('、') + 'ます';
+      return `${step(0)}、${step(1)}、${step(2)}…と、最後の<b>${order[order.length - 1]}</b>まで順に重ねます`;
+    };
+    if (N === 1 && M === 1) return '紙は1枚なので、貼り合わせはありません。';
+    const parts = [];
+    if (M > 1) {
+      parts.push(`まず同じ番号どうしを長さの方向につなぎます。たとえば ${chain(seq(M, (j) => `${c(0)}-${j + 1}`))}。${N > 1 ? 'ほかの番号も同じようにつなぎます。' : ''}`);
+    }
+    if (N > 1) {
+      const names = seq(N, (i) => c(i));
+      parts.push(`${M > 1 ? '次に、つないだものどうしを' : ''}${dir[0]}から${dir[1]}へ ${N > 4 ? `${names[0]}〜${names[N - 1]}` : names.join('・')} の順に並べ、${chain(names)}。`);
+      parts.push(next ? 'いつも「あとの番号の紙が上」です。' : 'いつも「前の番号の紙が上」です。');
+    }
+    return parts.join('');
+  }
   function renderSummary(r, p) {
     const pl = r.chosen, box = $('summary'), warns = [];
     $('makeBtn').disabled = !(pl.ok && (S.mode === 'design' || S.src)) || S.busy;
     $('designPdfBtn').disabled = S.busy;
     if (!pl.ok) { box.innerHTML = `<p class="sum-error">${pl.reason}</p>`; $('warns').innerHTML = ''; return; }
+    $('orderText').innerHTML = orderText(pl);
     const seamText = [pl.N > 1 ? `横 ${pl.N - 1}か所（長さ ${fmt(pl.L)}mm）` : '', pl.M > 1 ? `長さ方向 ${pl.N * (pl.M - 1)}か所` : ''].filter(Boolean).join('、') || 'なし';
     box.innerHTML = `
       <p class="sum-main"><span class="sum-n">${pl.sheets}</span>枚に分けて印刷します</p>
